@@ -6,7 +6,10 @@ import nextstep.security.aspect.SecuredAspect;
 import nextstep.security.authentication.AuthenticationException;
 import nextstep.security.authentication.BasicAuthenticationFilter;
 import nextstep.security.authentication.UsernamePasswordAuthenticationFilter;
-import nextstep.security.authorization.CheckAdminFilter;
+import nextstep.security.authorization.*;
+import nextstep.security.authorization.manager.*;
+import nextstep.security.authorization.matcher.AnyRequestMatcher;
+import nextstep.security.authorization.matcher.MvcRequestMatcher;
 import nextstep.security.config.DefaultSecurityFilterChain;
 import nextstep.security.config.DelegatingFilterProxy;
 import nextstep.security.config.FilterChainProxy;
@@ -17,7 +20,9 @@ import nextstep.security.userdetails.UserDetailsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
+import org.springframework.http.HttpMethod;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -47,8 +52,8 @@ public class SecurityConfig {
                 List.of(
                         new SecurityContextHolderFilter(),
                         new UsernamePasswordAuthenticationFilter(userDetailsService()),
-                        new BasicAuthenticationFilter(userDetailsService())
-//                        new CheckAdminFilter()
+                        new BasicAuthenticationFilter(userDetailsService()),
+                        new AuthorizationFilter(requestAuthorizationManager())
                 )
         );
     }
@@ -78,6 +83,16 @@ public class SecurityConfig {
 
     @Bean
     SecuredAspect securedAspect() {
-        return new SecuredAspect();
+        return new SecuredAspect(new SecuredAuthorizationManager());
+    }
+
+    @Bean
+    public RequestMatcherDelegatingAuthorizationManager requestAuthorizationManager() {
+        List<RequestMatcherEntry<AuthorizationManager>> mappings = new ArrayList<>();
+        mappings.add(new RequestMatcherEntry<>(new MvcRequestMatcher(HttpMethod.GET, "/members/me"), new AuthenticatedAuthorizationManager()));
+        mappings.add(new RequestMatcherEntry<>(new MvcRequestMatcher(HttpMethod.GET, "/members"), new AuthorityAuthorizationManager("ADMIN")));
+        mappings.add(new RequestMatcherEntry<>(new MvcRequestMatcher(HttpMethod.GET, "/search"), new PermitAllAuthorizationManager()));
+        mappings.add(new RequestMatcherEntry<>(new AnyRequestMatcher(), new PermitAllAuthorizationManager()));
+        return new RequestMatcherDelegatingAuthorizationManager(mappings);
     }
 }
