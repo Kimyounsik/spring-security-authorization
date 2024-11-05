@@ -2,9 +2,11 @@ package nextstep.app;
 
 import nextstep.app.domain.Member;
 import nextstep.app.domain.MemberRepository;
+import nextstep.security.aspect.SecuredAspect;
 import nextstep.security.authentication.AuthenticationException;
 import nextstep.security.authentication.BasicAuthenticationFilter;
 import nextstep.security.authentication.UsernamePasswordAuthenticationFilter;
+import nextstep.security.authorization.CheckAdminFilter;
 import nextstep.security.config.DefaultSecurityFilterChain;
 import nextstep.security.config.DelegatingFilterProxy;
 import nextstep.security.config.FilterChainProxy;
@@ -14,9 +16,12 @@ import nextstep.security.userdetails.UserDetails;
 import nextstep.security.userdetails.UserDetailsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
 
 import java.util.List;
+import java.util.Set;
 
+@EnableAspectJAutoProxy
 @Configuration
 public class SecurityConfig {
 
@@ -43,6 +48,7 @@ public class SecurityConfig {
                         new SecurityContextHolderFilter(),
                         new UsernamePasswordAuthenticationFilter(userDetailsService()),
                         new BasicAuthenticationFilter(userDetailsService())
+//                        new CheckAdminFilter()
                 )
         );
     }
@@ -63,7 +69,15 @@ public class SecurityConfig {
                 public String getPassword() {
                     return member.getPassword();
                 }
+
+                @Override
+                public Set<String> getAuthorities() {return member.getRoles();}
             };
         };
+    }
+
+    @Bean
+    SecuredAspect securedAspect() {
+        return new SecuredAspect();
     }
 }
